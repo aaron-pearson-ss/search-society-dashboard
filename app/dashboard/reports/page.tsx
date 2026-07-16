@@ -1,0 +1,9 @@
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+
+export default async function ReportsPage() {
+  const supabase = await createClient();
+  const { data: reports } = await supabase.from("client_reports").select("id, title, status, date_from, date_to, updated_at, clients(name)").order("updated_at", { ascending: false });
+  return <><div className="flex items-end justify-between gap-4"><div><p className="text-sm font-bold uppercase tracking-[0.18em] text-lime-600">Reporting</p><h1 className="mt-2 text-4xl font-bold tracking-tight text-[#181818]">Client reports</h1><p className="mt-2 text-slate-500">Draft, publish and revisit monthly SEO reports.</p></div></div>
+  <div className="app-card mt-8 overflow-hidden">{reports?.length ? <div className="divide-y divide-slate-100">{reports.map((report) => { const client = Array.isArray(report.clients) ? report.clients[0] : report.clients; return <Link href={`/dashboard/reports/${report.id}`} key={report.id} className="flex flex-col gap-3 p-5 transition hover:bg-white sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold text-slate-900">{report.title}</p><p className="mt-1 text-sm text-slate-500">{client?.name} · {new Date(`${report.date_from}T00:00:00`).toLocaleDateString("en-GB")}–{new Date(`${report.date_to}T00:00:00`).toLocaleDateString("en-GB")}</p></div><span className={`self-start rounded-full px-2.5 py-1 text-xs font-bold capitalize ${report.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{report.status}</span></Link>; })}</div> : <div className="p-10 text-center"><h2 className="font-bold text-slate-900">No reports yet</h2><p className="mt-2 text-sm text-slate-500">Open a client and choose Create report.</p><Link href="/dashboard/clients" className="btn-primary mt-5">Choose a client</Link></div>}</div></>;
+}

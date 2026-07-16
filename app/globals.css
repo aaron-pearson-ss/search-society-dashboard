@@ -30,3 +30,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .btn-secondary { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-black/20 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-[#f4f1e9] focus:outline-none focus:ring-4 focus:ring-lime-300/30; }
 .brand-kicker { color: #4b5f00; }
 .brand-accent-panel { background: var(--brand-accent); color: var(--brand-ink); }
+
+@media print {
+  .no-print, aside, header { display: none !important; }
+  main { padding: 0 !important; max-width: none !important; }
+  body, .report-document { background: white !important; }
+  .report-document { max-width: none !important; }
+  @page { size: A4 landscape; margin: 10mm; }
+}

@@ -78,3 +78,6 @@ Before deploying, add these server-only environment variables in Vercel:
 Also add all existing Supabase, Google OAuth and encryption variables to Vercel. Update the Google OAuth redirect URI to your production callback URL and keep the localhost callback as an additional authorised redirect URI.
 
 The cron endpoint only syncs linked properties that have not completed a sync in the previous six days. Manual syncing remains available from each client page.
+
+## Client reporting
+Run `supabase/migrations/0005_client_reports.sql` after the earlier migrations. Reports can be drafted in the dashboard, published to a tokenised read-only URL, and printed/saved as PDF through the browser.
