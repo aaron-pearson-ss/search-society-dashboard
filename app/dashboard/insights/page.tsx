@@ -10,6 +10,12 @@ const severityStyle: Record<string, string> = {
   info: "bg-blue-50 text-blue-700",
 };
 
+const priorityStyle: Record<string, string> = {
+  high: "bg-[#181818] text-white",
+  medium: "bg-amber-100 text-amber-800",
+  low: "bg-slate-100 text-slate-600",
+};
+
 function formatDate(value: string | null) {
   if (!value) return "Not analysed yet";
   return new Date(value).toLocaleString("en-GB", {
@@ -23,6 +29,7 @@ function formatDate(value: string | null) {
 
 export default async function InsightsPage() {
   const supabase = await createClient();
+
   const [{ data: clients }, { data: insights }] = await Promise.all([
     supabase
       .from("clients")
@@ -32,22 +39,35 @@ export default async function InsightsPage() {
     supabase
       .from("client_insights")
       .select(
-        "id,title,summary,recommendation,severity,status,generated_at,client:clients(id,name)"
+        "id,title,summary,recommendation,severity,priority,impact_score,status,generated_at,client:clients(id,name)"
       )
       .neq("status", "dismissed")
+      .order("impact_score", { ascending: false })
       .order("generated_at", { ascending: false }),
   ]);
+
+  const highPriorityCount =
+    insights?.filter((insight: any) => insight.priority === "high").length ?? 0;
 
   return (
     <>
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
           <p className="text-sm font-bold">Performance intelligence</p>
-          <h1 className="mt-1 text-3xl font-bold sm:text-4xl">Insights &amp; alerts</h1>
+          <h1 className="mt-1 text-3xl font-bold sm:text-4xl">
+            Insights &amp; alerts
+          </h1>
           <p className="mt-2 text-slate-500">
-            Generated automatically after the Monday GSC and GA4 refresh. Manual
-            generation remains available as a fallback.
+            Findings are scored by likely business impact so the most important
+            work appears first.
           </p>
+        </div>
+
+        <div className="rounded-2xl bg-[#181818] px-5 py-4 text-white">
+          <p className="text-xs font-bold uppercase tracking-wider text-lime-300">
+            High priority
+          </p>
+          <p className="mt-1 text-3xl font-bold">{highPriorityCount}</p>
         </div>
       </div>
 
@@ -69,6 +89,7 @@ export default async function InsightsPage() {
                   {client.insights_last_result_count ?? 0} current finding(s)
                 </p>
               </div>
+
               <form action={generateClientInsights.bind(null, client.id)}>
                 <button className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold hover:bg-slate-50">
                   Generate now
@@ -84,14 +105,29 @@ export default async function InsightsPage() {
           insights.map((insight: any) => (
             <article key={insight.id} className="app-card p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                <span
-                  className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold capitalize ${severityStyle[insight.severity]}`}
-                >
-                  {insight.severity}
-                </span>
+                <div className="flex shrink-0 flex-row gap-2 sm:flex-col">
+                  <span
+                    className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
+                      severityStyle[insight.severity]
+                    }`}
+                  >
+                    {insight.severity}
+                  </span>
+                  <span
+                    className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
+                      priorityStyle[insight.priority] ?? priorityStyle.low
+                    }`}
+                  >
+                    {insight.priority} priority
+                  </span>
+                </div>
+
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="font-bold text-slate-900">{insight.title}</h2>
+                    <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-bold text-slate-500">
+                      Score {insight.impact_score}/100
+                    </span>
                     <Link
                       href={`/dashboard/clients/${insight.client.id}`}
                       className="text-xs font-bold text-slate-400 hover:text-slate-900"
@@ -99,23 +135,41 @@ export default async function InsightsPage() {
                       {insight.client.name}
                     </Link>
                   </div>
+
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     {insight.summary}
                   </p>
+
                   <p className="mt-3 rounded-xl bg-[#f4f1e9] p-3 text-sm text-slate-700">
-                    <strong>Recommended action:</strong> {insight.recommendation}
+                    <strong>Recommended action:</strong>{" "}
+                    {insight.recommendation}
                   </p>
+
                   <p className="mt-2 text-xs text-slate-400">
                     Generated {formatDate(insight.generated_at)}
                   </p>
                 </div>
+
                 <div className="flex gap-2">
-                  <form action={setInsightStatus.bind(null, insight.id, "reviewed")}>
+                  <form
+                    action={setInsightStatus.bind(
+                      null,
+                      insight.id,
+                      "reviewed"
+                    )}
+                  >
                     <button className="rounded-xl bg-[#181818] px-3 py-2 text-xs font-bold text-white">
                       Reviewed
                     </button>
                   </form>
-                  <form action={setInsightStatus.bind(null, insight.id, "dismissed")}>
+
+                  <form
+                    action={setInsightStatus.bind(
+                      null,
+                      insight.id,
+                      "dismissed"
+                    )}
+                  >
                     <button className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">
                       Dismiss
                     </button>
@@ -129,8 +183,8 @@ export default async function InsightsPage() {
             <Icons.warning className="mx-auto h-8 w-8 text-slate-400" />
             <p className="mt-3 font-bold">No active insights yet</p>
             <p className="mt-1 text-sm text-slate-500">
-              Insights will be generated automatically after the next Monday sync,
-              or you can generate them manually above.
+              Generate insights for a client above or wait for the next Monday
+              refresh.
             </p>
           </div>
         )}

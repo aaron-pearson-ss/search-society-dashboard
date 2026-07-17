@@ -1,0 +1,82 @@
+export const INSIGHT_RULES = {
+  scoring: {
+    highPriorityMinimum: 75,
+    mediumPriorityMinimum: 45,
+    maximumScore: 100,
+    severityBase: {
+      critical: 80,
+      warning: 65,
+      opportunity: 45,
+      info: 20,
+    },
+    typeBonus: {
+      conversion_rate_drop: 10,
+      conversion_drop: 8,
+      landing_page_drop: 7,
+      performance_drop: 6,
+      conversion_opportunity: 6,
+      ctr_opportunity: 4,
+      ranking_opportunity: 3,
+      data_quality: 2,
+      ranking_growth: 0,
+      positive_performance: 0,
+      performance_summary: 0,
+    },
+  },
+  periods: {
+    comparisonDays: 28,
+    minimumDaysPerPeriod: 21,
+    freshnessWarningDays: 5,
+  },
+  gscClicks: {
+    minimumPrevious: 50,
+    warningDropPercent: -15,
+    criticalDropPercent: -30,
+    positiveGrowthPercent: 20,
+  },
+  ga4Sessions: {
+    minimumPrevious: 100,
+    warningDropPercent: -15,
+    criticalDropPercent: -30,
+  },
+  keyEvents: {
+    minimumPrevious: 10,
+    warningDropPercent: -20,
+    criticalDropPercent: -40,
+  },
+  conversionRate: {
+    minimumPreviousSessions: 150,
+    minimumPreviousEvents: 8,
+    warningDropPercent: -20,
+    criticalDropPercent: -35,
+  },
+  nearPageOne: {
+    minimumImpressions: 100,
+    minimumPosition: 4,
+    maximumPosition: 20,
+    maximumInsights: 5,
+  },
+  ctrOpportunity: {
+    minimumImpressions: 250,
+    maximumPosition: 10,
+    maximumCtr: 0.02,
+    maximumInsights: 5,
+  },
+  rankingImprovement: {
+    minimumImpressions: 100,
+    minimumPositionGain: 3,
+    maximumCurrentPosition: 20,
+    maximumInsights: 5,
+  },
+  landingPageDecline: {
+    minimumPreviousClicks: 25,
+    warningDropPercent: -20,
+    criticalDropPercent: -40,
+    maximumInsights: 5,
+  },
+  trafficWithoutConversions: {
+    minimumCurrentSessions: 150,
+    minimumTrafficGrowthPercent: 15,
+    maximumEventGrowthPercent: 5,
+  },
+} as const;
