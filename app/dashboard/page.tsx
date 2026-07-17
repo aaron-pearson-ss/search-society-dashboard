@@ -12,7 +12,7 @@ const statusStyle: Record<string, string> = {
 export default async function DashboardPage() {
   const supabase = await createClient();
   const staleBefore = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
-  const [{ count: clientCount }, { data: recentClients }, { data: properties }, { count: failedSyncs }, { count: openTasks }, { count: overdueTasks }, { data: atRiskClients }] = await Promise.all([
+  const [{ count: clientCount }, { data: recentClients }, { data: properties }, { count: failedSyncs }, { count: openTasks }, { count: overdueTasks }, { data: atRiskClients }, { count: newInsights }] = await Promise.all([
     supabase.from("clients").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("clients").select("id,name,domain,status,monthly_fee,created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("gsc_properties").select("id,last_synced_at,client_id").not("client_id", "is", null),
@@ -20,6 +20,7 @@ export default async function DashboardPage() {
     supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "done"),
     supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "done").lt("due_date", new Date().toISOString().slice(0,10)),
     supabase.from("clients").select("id,name,health_score,renewal_date").lt("health_score", 60).order("health_score").limit(5),
+    supabase.from("client_insights").select("id", { count: "exact", head: true }).eq("status", "new").in("severity", ["critical", "warning"]),
   ]);
 
   const connectedCount = properties?.length ?? 0;
@@ -30,6 +31,7 @@ export default async function DashboardPage() {
     { label: "GSC connections", value: String(connectedCount), note: "Linked client properties", icon: Icons.globe },
     { label: "Open tasks", value: String(openTasks ?? 0), note: `${overdueTasks ?? 0} overdue`, icon: Icons.tasks },
     { label: "Clients at risk", value: String(atRiskClients?.length ?? 0), note: "Health score below 60", icon: Icons.warning },
+    { label: "New warnings", value: String(newInsights ?? 0), note: "Generated after weekly analysis", icon: Icons.warning },
   ];
 
   return (
@@ -39,7 +41,7 @@ export default async function DashboardPage() {
         <Link href="/dashboard/clients/new" className="btn-primary"><Icons.plus className="h-4 w-4"/>Add client</Link>
       </div>
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {cards.map(({ label, value, note, icon: Icon }) => <article key={label} className="app-card p-5"><div className="flex items-start justify-between"><div><p className="text-sm font-semibold text-slate-500">{label}</p><p className="mt-3 text-3xl font-bold tracking-tight text-[#181818]">{value}</p></div><span className="grid h-11 w-11 place-items-center rounded-xl bg-lime-50 text-[#181818]"><Icon className="h-5 w-5"/></span></div><p className="mt-3 text-xs text-slate-400">{note}</p></article>)}
       </section>
 
@@ -50,9 +52,9 @@ export default async function DashboardPage() {
         </article>
 
         <article className="app-card p-6">
-          <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#181818] text-white"><Icons.globe className="h-5 w-5"/></span><div><h2 className="font-bold text-slate-900">Search Console</h2><p className="text-sm text-slate-500">Weekly automation</p></div></div>
-          <div className="mt-6 rounded-2xl bg-[#181818] p-5 text-white"><p className="text-xs font-bold uppercase tracking-wider text-lime-300">Every Monday</p><h3 className="mt-2 text-xl font-bold">Client performance refreshes automatically.</h3><p className="mt-3 text-sm leading-6 text-slate-300">The scheduler imports daily totals, queries and landing pages each Monday at 06:00 UTC.</p></div>
-          <div className="mt-5 space-y-3">{["Secure Google OAuth", "90-day performance refresh", "Weekly automated sync"].map(item => <div key={item} className="flex items-center gap-3 text-sm text-slate-600"><span className="grid h-6 w-6 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Icons.check className="h-3.5 w-3.5"/></span>{item}</div>)}</div>
+          <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#181818] text-white"><Icons.globe className="h-5 w-5"/></span><div><h2 className="font-bold text-slate-900">Search Console</h2><p className="text-sm text-slate-500">Weekly data and insight automation</p></div></div>
+          <div className="mt-6 rounded-2xl bg-[#181818] p-5 text-white"><p className="text-xs font-bold uppercase tracking-wider text-lime-300">Every Monday</p><h3 className="mt-2 text-xl font-bold">Client performance refreshes automatically.</h3><p className="mt-3 text-sm leading-6 text-slate-300">The scheduler refreshes Search Console and GA4, then regenerates client insights each Monday at 06:00 UTC.</p></div>
+          <div className="mt-5 space-y-3">{["Secure Google OAuth", "GSC and GA4 refresh", "Automatic insight generation"].map(item => <div key={item} className="flex items-center gap-3 text-sm text-slate-600"><span className="grid h-6 w-6 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Icons.check className="h-3.5 w-3.5"/></span>{item}</div>)}</div>
         </article>
       </section>
     </>

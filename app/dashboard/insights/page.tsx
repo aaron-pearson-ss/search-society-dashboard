@@ -1,3 +1,140 @@
-import Link from "next/link";import { createClient } from "@/lib/supabase/server";import { Icons } from "@/components/ui/icons";import { generateClientInsights,setInsightStatus } from "./actions";
-const style:any={critical:"bg-rose-50 text-rose-700",warning:"bg-amber-50 text-amber-700",opportunity:"bg-lime-50 text-lime-800",info:"bg-blue-50 text-blue-700"};
-export default async function InsightsPage(){const s=await createClient();const [{data:clients},{data:insights}]=await Promise.all([s.from("clients").select("id,name").in("status",["active","onboarding"]).order("name"),s.from("client_insights").select("id,title,summary,recommendation,severity,status,generated_at,client:clients(id,name)").neq("status","dismissed").order("generated_at",{ascending:false})]);return <><div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="text-sm font-bold">Performance intelligence</p><h1 className="mt-1 text-3xl font-bold sm:text-4xl">Insights & alerts</h1><p className="mt-2 text-slate-500">Rule-based findings generated from GSC and GA4 comparisons.</p></div><div className="flex flex-wrap gap-2">{clients?.map(c=><form key={c.id} action={generateClientInsights.bind(null,c.id)}><button className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold">Generate for {c.name}</button></form>)}</div></div><section className="mt-8 space-y-4">{insights?.length?insights.map((i:any)=><article key={i.id} className="app-card p-6"><div className="flex flex-col gap-4 sm:flex-row sm:items-start"><span className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold capitalize ${style[i.severity]}`}>{i.severity}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold text-slate-900">{i.title}</h2><Link href={`/dashboard/clients/${i.client.id}`} className="text-xs font-bold text-slate-400 hover:text-slate-900">{i.client.name}</Link></div><p className="mt-2 text-sm leading-6 text-slate-600">{i.summary}</p><p className="mt-3 rounded-xl bg-[#f4f1e9] p-3 text-sm text-slate-700"><strong>Recommended action:</strong> {i.recommendation}</p></div><div className="flex gap-2"><form action={setInsightStatus.bind(null,i.id,"reviewed")}><button className="rounded-xl bg-[#181818] px-3 py-2 text-xs font-bold text-white">Reviewed</button></form><form action={setInsightStatus.bind(null,i.id,"dismissed")}><button className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">Dismiss</button></form></div></div></article>):<div className="app-card p-12 text-center"><Icons.warning className="mx-auto h-8 w-8 text-slate-400"/><p className="mt-3 font-bold">No active insights yet</p><p className="mt-1 text-sm text-slate-500">Generate insights for a client after its GSC and GA4 data have synced.</p></div>}</section></>}
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { Icons } from "@/components/ui/icons";
+import { generateClientInsights, setInsightStatus } from "./actions";
+
+const severityStyle: Record<string, string> = {
+  critical: "bg-rose-50 text-rose-700",
+  warning: "bg-amber-50 text-amber-700",
+  opportunity: "bg-lime-50 text-lime-800",
+  info: "bg-blue-50 text-blue-700",
+};
+
+function formatDate(value: string | null) {
+  if (!value) return "Not analysed yet";
+  return new Date(value).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export default async function InsightsPage() {
+  const supabase = await createClient();
+  const [{ data: clients }, { data: insights }] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id,name,insights_last_analyzed_at,insights_last_result_count")
+      .in("status", ["active", "onboarding"])
+      .order("name"),
+    supabase
+      .from("client_insights")
+      .select(
+        "id,title,summary,recommendation,severity,status,generated_at,client:clients(id,name)"
+      )
+      .neq("status", "dismissed")
+      .order("generated_at", { ascending: false }),
+  ]);
+
+  return (
+    <>
+      <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-bold">Performance intelligence</p>
+          <h1 className="mt-1 text-3xl font-bold sm:text-4xl">Insights &amp; alerts</h1>
+          <p className="mt-2 text-slate-500">
+            Generated automatically after the Monday GSC and GA4 refresh. Manual
+            generation remains available as a fallback.
+          </p>
+        </div>
+      </div>
+
+      <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {clients?.map((client) => (
+          <article key={client.id} className="app-card p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <Link
+                  href={`/dashboard/clients/${client.id}`}
+                  className="font-bold text-slate-900 hover:underline"
+                >
+                  {client.name}
+                </Link>
+                <p className="mt-1 text-xs text-slate-500">
+                  Last analysed: {formatDate(client.insights_last_analyzed_at)}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {client.insights_last_result_count ?? 0} current finding(s)
+                </p>
+              </div>
+              <form action={generateClientInsights.bind(null, client.id)}>
+                <button className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold hover:bg-slate-50">
+                  Generate now
+                </button>
+              </form>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <section className="mt-8 space-y-4">
+        {insights?.length ? (
+          insights.map((insight: any) => (
+            <article key={insight.id} className="app-card p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                <span
+                  className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold capitalize ${severityStyle[insight.severity]}`}
+                >
+                  {insight.severity}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-bold text-slate-900">{insight.title}</h2>
+                    <Link
+                      href={`/dashboard/clients/${insight.client.id}`}
+                      className="text-xs font-bold text-slate-400 hover:text-slate-900"
+                    >
+                      {insight.client.name}
+                    </Link>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {insight.summary}
+                  </p>
+                  <p className="mt-3 rounded-xl bg-[#f4f1e9] p-3 text-sm text-slate-700">
+                    <strong>Recommended action:</strong> {insight.recommendation}
+                  </p>
+                  <p className="mt-2 text-xs text-slate-400">
+                    Generated {formatDate(insight.generated_at)}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <form action={setInsightStatus.bind(null, insight.id, "reviewed")}>
+                    <button className="rounded-xl bg-[#181818] px-3 py-2 text-xs font-bold text-white">
+                      Reviewed
+                    </button>
+                  </form>
+                  <form action={setInsightStatus.bind(null, insight.id, "dismissed")}>
+                    <button className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">
+                      Dismiss
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </article>
+          ))
+        ) : (
+          <div className="app-card p-12 text-center">
+            <Icons.warning className="mx-auto h-8 w-8 text-slate-400" />
+            <p className="mt-3 font-bold">No active insights yet</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Insights will be generated automatically after the next Monday sync,
+              or you can generate them manually above.
+            </p>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}

@@ -84,3 +84,7 @@ Run `supabase/migrations/0005_client_reports.sql` after the earlier migrations. 
 
 ## Agency operations (migration 0006)
 Run `supabase/migrations/0006_agency_operations.sql` in Supabase. This adds tasks, recurring deliverables, renewal dates, services and client health scoring.
+
+## Automated weekly insights
+
+Migration `0009_automated_insights.sql` adds per-client insight analysis timestamps. The existing Monday cron now refreshes linked GSC and GA4 properties, regenerates deterministic insights, and dismisses findings that no longer apply.
