@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { buildInsights } from "@/lib/insights/generate";
 
-export async function generateClientInsights(clientId: string) {
+export async function generateClientInsights(
+  clientId: string
+): Promise<void> {
   const supabase = await createClient();
 
   const {
@@ -111,17 +113,12 @@ export async function generateClientInsights(clientId: string) {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/insights");
   revalidatePath(`/dashboard/clients/${clientId}`);
-
-  return {
-    clientName: client.name,
-    insightCount: insights.length,
-  };
 }
 
 export async function setInsightStatus(
   insightId: string,
   status: "reviewed" | "dismissed"
-) {
+): Promise<void> {
   const supabase = await createClient();
 
   const {
