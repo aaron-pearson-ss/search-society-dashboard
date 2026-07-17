@@ -28,6 +28,32 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .form-input { @apply mt-2 w-full rounded-xl border border-black/20 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-black focus:ring-4 focus:ring-lime-300/40; }
 .btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-[#181818] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-black focus:outline-none focus:ring-4 focus:ring-lime-300/60 disabled:cursor-not-allowed disabled:bg-slate-300; }
 .btn-secondary { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-black/20 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-[#f4f1e9] focus:outline-none focus:ring-4 focus:ring-lime-300/30; }
+.btn-interactive {
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+}
+.btn-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+}
+.btn-interactive:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.16);
+}
+.btn-interactive:focus-visible {
+  outline: 3px solid var(--brand-accent);
+  outline-offset: 3px;
+}
+.btn-interactive:disabled {
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.55;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-interactive { transition: none; }
+}
+
 .brand-kicker { color: #4b5f00; }
 .brand-accent-panel { background: var(--brand-accent); color: var(--brand-ink); }
 

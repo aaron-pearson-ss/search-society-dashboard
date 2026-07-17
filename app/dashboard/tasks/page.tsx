@@ -79,15 +79,49 @@ export default async function TasksPage({
   const clientFilter = paramValue(params.client);
   const ownerFilter = paramValue(params.owner);
 
+  const returnParams = new URLSearchParams();
+
+  if (view) returnParams.set("view", view);
+  if (statusFilter) returnParams.set("status", statusFilter);
+  if (priorityFilter) returnParams.set("priority", priorityFilter);
+  if (clientFilter) returnParams.set("client", clientFilter);
+  if (ownerFilter) returnParams.set("owner", ownerFilter);
+
+  const returnTo = `/dashboard/tasks${
+    returnParams.size ? `?${returnParams.toString()}` : ""
+  }`;
+
   const allTasks = tasks ?? [];
-  const filteredTasks = allTasks.filter((task: any) => {
-    if (view === "my" && task.owner_id !== user?.id) return false;
-    if (statusFilter && task.status !== statusFilter) return false;
-    if (priorityFilter && task.priority !== priorityFilter) return false;
-    if (clientFilter && task.client?.id !== clientFilter) return false;
-    if (ownerFilter && task.owner_id !== ownerFilter) return false;
-    return true;
-  });
+  const filteredTasks = allTasks
+    .filter((task: any) => {
+      if (view === "my" && task.owner_id !== user?.id) return false;
+      if (statusFilter && task.status !== statusFilter) return false;
+      if (priorityFilter && task.priority !== priorityFilter) return false;
+      if (clientFilter && task.client?.id !== clientFilter) return false;
+      if (ownerFilter && task.owner_id !== ownerFilter) return false;
+      return true;
+    })
+    .sort((a: any, b: any) => {
+      const aDone = a.status === "done";
+      const bDone = b.status === "done";
+
+      if (aDone !== bDone) return aDone ? 1 : -1;
+
+      if (aDone && bDone) {
+        return (
+          new Date(b.completed_at ?? 0).getTime() -
+          new Date(a.completed_at ?? 0).getTime()
+        );
+      }
+
+      if (!a.due_date && b.due_date) return 1;
+      if (a.due_date && !b.due_date) return -1;
+      if (a.due_date && b.due_date) {
+        return a.due_date.localeCompare(b.due_date);
+      }
+
+      return 0;
+    });
 
   const openTasks = allTasks.filter((task: any) => task.status !== "done");
   const today = new Date().toISOString().slice(0, 10);
@@ -127,7 +161,7 @@ export default async function TasksPage({
         <div className="flex gap-2">
           <Link
             href="/dashboard/tasks"
-            className={`rounded-xl px-4 py-2 text-sm font-bold ${
+            className={`btn-interactive rounded-xl px-4 py-2 text-sm font-bold ${
               view !== "my"
                 ? "bg-[#181818] text-white"
                 : "border border-slate-200 bg-white"
@@ -137,7 +171,7 @@ export default async function TasksPage({
           </Link>
           <Link
             href="/dashboard/tasks?view=my"
-            className={`rounded-xl px-4 py-2 text-sm font-bold ${
+            className={`btn-interactive rounded-xl px-4 py-2 text-sm font-bold ${
               view === "my"
                 ? "bg-[#181818] text-white"
                 : "border border-slate-200 bg-white"
@@ -165,6 +199,7 @@ export default async function TasksPage({
       <section className="mt-6 grid gap-6 xl:grid-cols-[.68fr_1.32fr]">
         <div className="space-y-6">
           <form action={createTask} className="app-card h-fit p-6">
+            <input type="hidden" name="return_to" value={returnTo} />
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-lime-100">
                 <Icons.plus className="h-5 w-5" />
@@ -265,7 +300,7 @@ export default async function TasksPage({
               />
 
               <button
-                className="btn-primary w-full justify-center"
+                className="btn-primary btn-interactive w-full justify-center"
                 type="submit"
               >
                 Add task
@@ -360,7 +395,7 @@ export default async function TasksPage({
               ))}
             </select>
 
-            <button className="rounded-xl bg-[#181818] px-4 py-2 text-sm font-bold text-white">
+            <button className="btn-interactive rounded-xl bg-[#181818] px-4 py-2 text-sm font-bold text-white">
               Apply filters
             </button>
           </form>
@@ -459,9 +494,11 @@ export default async function TasksPage({
                       </div>
 
                       <form
+                        key={`${task.id}-${task.status}-${task.owner_id ?? "none"}-${task.completed_at ?? "open"}`}
                         action={updateTask.bind(null, task.id)}
                         className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[.8fr_1fr_1.5fr_auto]"
                       >
+                        <input type="hidden" name="return_to" value={returnTo} />
                         <select
                           name="status"
                           defaultValue={task.status}
@@ -492,13 +529,13 @@ export default async function TasksPage({
                         <input
                           name="completion_note"
                           defaultValue={task.completion_note ?? ""}
-                          placeholder="Completion note required when done"
+                          placeholder="Completion note (optional)"
                           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
                         />
 
                         <button
                           type="submit"
-                          className="rounded-xl bg-[#181818] px-4 py-2 text-sm font-semibold text-white"
+                          className="btn-interactive rounded-xl bg-[#181818] px-4 py-2 text-sm font-semibold text-white"
                         >
                           Update
                         </button>

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 const validStatuses = ["todo", "in_progress", "blocked", "done"] as const;
@@ -8,8 +9,17 @@ const validPriorities = ["low", "medium", "high", "urgent"] as const;
 
 type TaskStatus = (typeof validStatuses)[number];
 
+function safeReturnPath(formData: FormData): string {
+  const requestedPath = String(formData.get("return_to") ?? "").trim();
+
+  return requestedPath.startsWith("/dashboard/tasks")
+    ? requestedPath
+    : "/dashboard/tasks";
+}
+
 export async function createTask(formData: FormData): Promise<void> {
   const supabase = await createClient();
+  const returnTo = safeReturnPath(formData);
 
   const {
     data: { user },
@@ -71,6 +81,7 @@ export async function createTask(formData: FormData): Promise<void> {
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/tasks");
+  redirect(returnTo);
 }
 
 export async function updateTask(
@@ -78,6 +89,7 @@ export async function updateTask(
   formData: FormData
 ): Promise<void> {
   const supabase = await createClient();
+  const returnTo = safeReturnPath(formData);
 
   const {
     data: { user },
@@ -172,4 +184,6 @@ export async function updateTask(
   if (task.client_id) {
     revalidatePath(`/dashboard/clients/${task.client_id}`);
   }
+
+  redirect(returnTo);
 }
