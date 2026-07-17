@@ -29,6 +29,11 @@ const navigation: NavItem[] = [
     label: "Tasks",
     icon: Icons.tasks,
   },
+{
+  href: "/dashboard/insights",
+  label: "Insights",
+  icon: Icons.warning,
+},
   {
     href: "/dashboard/reports",
     label: "Reports",
