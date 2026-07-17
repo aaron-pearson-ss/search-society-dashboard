@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Icons } from "@/components/ui/icons";
-import { generateClientInsights, setInsightStatus } from "./actions";
+import {
+  createTaskFromInsight,
+  generateClientInsights,
+  setInsightStatus,
+} from "./actions";
 
 const severityStyle: Record<string, string> = {
   critical: "bg-rose-50 text-rose-700",
@@ -18,6 +22,7 @@ const priorityStyle: Record<string, string> = {
 
 function formatDate(value: string | null) {
   if (!value) return "Not analysed yet";
+
   return new Date(value).toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -39,7 +44,7 @@ export default async function InsightsPage() {
     supabase
       .from("client_insights")
       .select(
-        "id,title,summary,recommendation,severity,priority,impact_score,status,generated_at,client:clients(id,name)"
+        "id,title,summary,recommendation,severity,priority,impact_score,status,generated_at,client:clients(id,name),task:tasks(id,title,status,due_date)"
       )
       .neq("status", "dismissed")
       .order("impact_score", { ascending: false })
@@ -58,8 +63,8 @@ export default async function InsightsPage() {
             Insights &amp; alerts
           </h1>
           <p className="mt-2 text-slate-500">
-            Findings are scored by likely business impact so the most important
-            work appears first.
+            Prioritise findings, turn them into tracked work and keep every
+            action connected to its source.
           </p>
         </div>
 
@@ -102,82 +107,117 @@ export default async function InsightsPage() {
 
       <section className="mt-8 space-y-4">
         {insights?.length ? (
-          insights.map((insight: any) => (
-            <article key={insight.id} className="app-card p-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                <div className="flex shrink-0 flex-row gap-2 sm:flex-col">
-                  <span
-                    className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
-                      severityStyle[insight.severity]
-                    }`}
-                  >
-                    {insight.severity}
-                  </span>
-                  <span
-                    className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
-                      priorityStyle[insight.priority] ?? priorityStyle.low
-                    }`}
-                  >
-                    {insight.priority} priority
-                  </span>
-                </div>
+          insights.map((insight: any) => {
+            const linkedTask = Array.isArray(insight.task)
+              ? insight.task[0]
+              : insight.task;
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-bold text-slate-900">{insight.title}</h2>
-                    <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-bold text-slate-500">
-                      Score {insight.impact_score}/100
-                    </span>
-                    <Link
-                      href={`/dashboard/clients/${insight.client.id}`}
-                      className="text-xs font-bold text-slate-400 hover:text-slate-900"
+            return (
+              <article key={insight.id} className="app-card p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                  <div className="flex shrink-0 flex-row gap-2 sm:flex-col">
+                    <span
+                      className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
+                        severityStyle[insight.severity]
+                      }`}
                     >
-                      {insight.client.name}
-                    </Link>
+                      {insight.severity}
+                    </span>
+                    <span
+                      className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
+                        priorityStyle[insight.priority] ?? priorityStyle.low
+                      }`}
+                    >
+                      {insight.priority} priority
+                    </span>
                   </div>
 
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {insight.summary}
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-bold text-slate-900">
+                        {insight.title}
+                      </h2>
+                      <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-bold text-slate-500">
+                        Score {insight.impact_score}/100
+                      </span>
+                      <Link
+                        href={`/dashboard/clients/${insight.client.id}`}
+                        className="text-xs font-bold text-slate-400 hover:text-slate-900"
+                      >
+                        {insight.client.name}
+                      </Link>
+                    </div>
 
-                  <p className="mt-3 rounded-xl bg-[#f4f1e9] p-3 text-sm text-slate-700">
-                    <strong>Recommended action:</strong>{" "}
-                    {insight.recommendation}
-                  </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      {insight.summary}
+                    </p>
 
-                  <p className="mt-2 text-xs text-slate-400">
-                    Generated {formatDate(insight.generated_at)}
-                  </p>
-                </div>
+                    <p className="mt-3 rounded-xl bg-[#f4f1e9] p-3 text-sm text-slate-700">
+                      <strong>Recommended action:</strong>{" "}
+                      {insight.recommendation}
+                    </p>
 
-                <div className="flex gap-2">
-                  <form
-                    action={setInsightStatus.bind(
-                      null,
-                      insight.id,
-                      "reviewed"
+                    {linkedTask ? (
+                      <Link
+                        href="/dashboard/tasks"
+                        className="mt-3 flex w-fit items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700"
+                      >
+                        <Icons.check className="h-4 w-4" />
+                        Task created · {linkedTask.status.replace("_", " ")}
+                      </Link>
+                    ) : null}
+
+                    <p className="mt-2 text-xs text-slate-400">
+                      Generated {formatDate(insight.generated_at)}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {linkedTask ? (
+                      <Link
+                        href="/dashboard/tasks"
+                        className="rounded-xl bg-[#181818] px-3 py-2 text-xs font-bold text-white"
+                      >
+                        View task
+                      </Link>
+                    ) : (
+                      <form action={createTaskFromInsight.bind(null, insight.id)}>
+                        <button className="rounded-xl bg-[#181818] px-3 py-2 text-xs font-bold text-white">
+                          Create task
+                        </button>
+                      </form>
                     )}
-                  >
-                    <button className="rounded-xl bg-[#181818] px-3 py-2 text-xs font-bold text-white">
-                      Reviewed
-                    </button>
-                  </form>
 
-                  <form
-                    action={setInsightStatus.bind(
-                      null,
-                      insight.id,
-                      "dismissed"
-                    )}
-                  >
-                    <button className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">
-                      Dismiss
-                    </button>
-                  </form>
+                    {insight.status !== "reviewed" && !linkedTask ? (
+                      <form
+                        action={setInsightStatus.bind(
+                          null,
+                          insight.id,
+                          "reviewed"
+                        )}
+                      >
+                        <button className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">
+                          Reviewed
+                        </button>
+                      </form>
+                    ) : null}
+
+                    <form
+                      action={setInsightStatus.bind(
+                        null,
+                        insight.id,
+                        "dismissed"
+                      )}
+                    >
+                      <button className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">
+                        Dismiss
+                      </button>
+                    </form>
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))
+              </article>
+            );
+          })
         ) : (
           <div className="app-card p-12 text-center">
             <Icons.warning className="mx-auto h-8 w-8 text-slate-400" />

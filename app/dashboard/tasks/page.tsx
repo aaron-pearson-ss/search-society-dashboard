@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Icons } from "@/components/ui/icons";
 import { createClient } from "@/lib/supabase/server";
 import { createTask, updateTaskStatus } from "./actions";
@@ -16,7 +17,7 @@ export default async function TasksPage() {
     supabase
       .from("tasks")
       .select(
-        "id,title,description,status,priority,due_date,is_recurring,recurrence_rule,client:clients(id,name)"
+        "id,title,description,status,priority,due_date,is_recurring,recurrence_rule,source_insight_id,client:clients(id,name),source_insight:client_insights(id,title,impact_score)"
       )
       .order("due_date", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false }),
@@ -28,14 +29,12 @@ export default async function TasksPage() {
   ]);
 
   const openTasks = (tasks ?? []).filter((task) => task.status !== "done");
-
   const today = new Date().toISOString().slice(0, 10);
-
   const overdueTasks = openTasks.filter(
     (task) => task.due_date && task.due_date < today
   );
-
   const recurringTasks = (tasks ?? []).filter((task) => task.is_recurring);
+  const insightTasks = (tasks ?? []).filter((task) => task.source_insight_id);
 
   return (
     <>
@@ -44,27 +43,25 @@ export default async function TasksPage() {
           <p className="text-sm font-bold text-[#181818]">
             Agency operations
           </p>
-
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#181818] sm:text-4xl">
             Tasks &amp; deliverables
           </h1>
-
           <p className="mt-2 text-slate-500">
-            Keep every client commitment, deadline and recurring deliverable
+            Keep every client commitment, deadline and insight-led action
             visible.
           </p>
         </div>
       </div>
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-3">
+      <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           ["Open tasks", openTasks.length],
           ["Overdue", overdueTasks.length],
           ["Recurring", recurringTasks.length],
+          ["From insights", insightTasks.length],
         ].map(([label, value]) => (
           <article key={String(label)} className="app-card p-5">
             <p className="text-sm font-semibold text-slate-500">{label}</p>
-
             <p className="mt-3 text-3xl font-bold text-[#181818]">{value}</p>
           </article>
         ))}
@@ -76,10 +73,8 @@ export default async function TasksPage() {
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-lime-100">
               <Icons.plus className="h-5 w-5" />
             </span>
-
             <div>
               <h2 className="font-bold text-slate-900">New task</h2>
-
               <p className="text-sm text-slate-500">
                 Add a one-off or recurring deliverable.
               </p>
@@ -89,7 +84,6 @@ export default async function TasksPage() {
           <div className="mt-6 space-y-4">
             <label className="block text-sm font-semibold text-slate-700">
               Task title
-
               <input
                 required
                 name="title"
@@ -100,13 +94,11 @@ export default async function TasksPage() {
 
             <label className="block text-sm font-semibold text-slate-700">
               Client
-
               <select
                 name="client_id"
                 className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5"
               >
                 <option value="">Agency-wide</option>
-
                 {clients?.map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}
@@ -118,7 +110,6 @@ export default async function TasksPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm font-semibold text-slate-700">
                 Priority
-
                 <select
                   name="priority"
                   defaultValue="medium"
@@ -133,7 +124,6 @@ export default async function TasksPage() {
 
               <label className="block text-sm font-semibold text-slate-700">
                 Due date
-
                 <input
                   type="date"
                   name="due_date"
@@ -144,7 +134,6 @@ export default async function TasksPage() {
 
             <label className="block text-sm font-semibold text-slate-700">
               Notes
-
               <textarea
                 name="description"
                 rows={3}
@@ -163,10 +152,7 @@ export default async function TasksPage() {
               placeholder="e.g. Monthly, first Monday"
             />
 
-            <button
-              className="btn-primary w-full justify-center"
-              type="submit"
-            >
+            <button className="btn-primary w-full justify-center" type="submit">
               Add task
             </button>
           </div>
@@ -175,7 +161,6 @@ export default async function TasksPage() {
         <article className="app-card overflow-hidden">
           <div className="border-b border-slate-100 px-6 py-5">
             <h2 className="font-bold text-slate-900">Current workload</h2>
-
             <p className="mt-1 text-sm text-slate-500">
               Sorted by deadline.
             </p>
@@ -183,70 +168,83 @@ export default async function TasksPage() {
 
           {tasks?.length ? (
             <div className="divide-y divide-slate-100">
-              {tasks.map((task: any) => (
-                <div
-                  key={task.id}
-                  className="p-5 sm:flex sm:items-center sm:gap-4"
-                >
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
-                      priorityStyle[task.priority] ??
-                      priorityStyle.medium
-                    }`}
-                  >
-                    {task.priority}
-                  </span>
+              {tasks.map((task: any) => {
+                const sourceInsight = Array.isArray(task.source_insight)
+                  ? task.source_insight[0]
+                  : task.source_insight;
 
-                  <div className="mt-3 min-w-0 flex-1 sm:mt-0">
-                    <p
-                      className={`font-bold ${
-                        task.status === "done"
-                          ? "text-slate-400 line-through"
-                          : "text-slate-900"
+                return (
+                  <div
+                    key={task.id}
+                    className="p-5 sm:flex sm:items-center sm:gap-4"
+                  >
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
+                        priorityStyle[task.priority] ?? priorityStyle.medium
                       }`}
                     >
-                      {task.title}
-                    </p>
+                      {task.priority}
+                    </span>
 
-                    <p className="mt-1 text-sm text-slate-500">
-                      {task.client?.name ?? "Agency-wide"}
+                    <div className="mt-3 min-w-0 flex-1 sm:mt-0">
+                      <p
+                        className={`font-bold ${
+                          task.status === "done"
+                            ? "text-slate-400 line-through"
+                            : "text-slate-900"
+                        }`}
+                      >
+                        {task.title}
+                      </p>
 
-                      {task.due_date
-                        ? ` · Due ${new Date(
-                            `${task.due_date}T00:00:00`
-                          ).toLocaleDateString("en-GB")}`
-                        : ""}
+                      <p className="mt-1 text-sm text-slate-500">
+                        {task.client?.name ?? "Agency-wide"}
+                        {task.due_date
+                          ? ` · Due ${new Date(
+                              `${task.due_date}T00:00:00`
+                            ).toLocaleDateString("en-GB")}`
+                          : ""}
+                        {task.is_recurring
+                          ? ` · ${task.recurrence_rule || "Recurring"}`
+                          : ""}
+                      </p>
 
-                      {task.is_recurring
-                        ? ` · ${task.recurrence_rule || "Recurring"}`
-                        : ""}
-                    </p>
+                      {sourceInsight ? (
+                        <Link
+                          href="/dashboard/insights"
+                          className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900"
+                        >
+                          <Icons.warning className="h-3.5 w-3.5" />
+                          From insight · Score {sourceInsight.impact_score}
+                        </Link>
+                      ) : null}
+                    </div>
+
+                    <form
+                      action={updateTaskStatus.bind(null, task.id)}
+                      className="mt-3 flex items-center gap-2 sm:mt-0"
+                    >
+                      <select
+                        name="status"
+                        defaultValue={task.status}
+                        className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                      >
+                        <option value="todo">To do</option>
+                        <option value="in_progress">In progress</option>
+                        <option value="blocked">Blocked</option>
+                        <option value="done">Done</option>
+                      </select>
+
+                      <button
+                        type="submit"
+                        className="rounded-xl bg-[#181818] px-3 py-2 text-sm font-semibold text-white"
+                      >
+                        Update
+                      </button>
+                    </form>
                   </div>
-
-                  <form
-                    action={updateTaskStatus.bind(null, task.id)}
-                    className="mt-3 flex items-center gap-2 sm:mt-0"
-                  >
-                    <select
-                      name="status"
-                      defaultValue={task.status}
-                      className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-                    >
-                      <option value="todo">To do</option>
-                      <option value="in_progress">In progress</option>
-                      <option value="blocked">Blocked</option>
-                      <option value="done">Done</option>
-                    </select>
-
-                    <button
-                      type="submit"
-                      className="rounded-xl bg-[#181818] px-3 py-2 text-sm font-semibold text-white"
-                    >
-                      Update
-                    </button>
-                  </form>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="p-12 text-center text-sm text-slate-500">
