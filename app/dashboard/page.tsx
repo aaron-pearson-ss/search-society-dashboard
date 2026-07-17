@@ -12,11 +12,14 @@ const statusStyle: Record<string, string> = {
 export default async function DashboardPage() {
   const supabase = await createClient();
   const staleBefore = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
-  const [{ count: clientCount }, { data: recentClients }, { data: properties }, { count: failedSyncs }] = await Promise.all([
+  const [{ count: clientCount }, { data: recentClients }, { data: properties }, { count: failedSyncs }, { count: openTasks }, { count: overdueTasks }, { data: atRiskClients }] = await Promise.all([
     supabase.from("clients").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("clients").select("id,name,domain,status,monthly_fee,created_at").order("created_at", { ascending: false }).limit(5),
     supabase.from("gsc_properties").select("id,last_synced_at,client_id").not("client_id", "is", null),
     supabase.from("gsc_sync_runs").select("id", { count: "exact", head: true }).eq("status", "failed").gte("started_at", staleBefore),
+    supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "done"),
+    supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "done").lt("due_date", new Date().toISOString().slice(0,10)),
+    supabase.from("clients").select("id,name,health_score,renewal_date").lt("health_score", 60).order("health_score").limit(5),
   ]);
 
   const connectedCount = properties?.length ?? 0;
@@ -25,8 +28,8 @@ export default async function DashboardPage() {
   const cards = [
     { label: "Active clients", value: String(clientCount ?? 0), note: "Current portfolio", icon: Icons.users },
     { label: "GSC connections", value: String(connectedCount), note: "Linked client properties", icon: Icons.globe },
-    { label: "Weekly sync due", value: String(staleCount), note: "Not updated in 8 days", icon: Icons.tasks },
-    { label: "Sync failures", value: String(failedSyncs ?? 0), note: "During the last 8 days", icon: Icons.warning },
+    { label: "Open tasks", value: String(openTasks ?? 0), note: `${overdueTasks ?? 0} overdue`, icon: Icons.tasks },
+    { label: "Clients at risk", value: String(atRiskClients?.length ?? 0), note: "Health score below 60", icon: Icons.warning },
   ];
 
   return (

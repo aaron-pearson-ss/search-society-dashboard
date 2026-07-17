@@ -81,3 +81,6 @@ The cron endpoint only syncs linked properties that have not completed a sync in
 
 ## Client reporting
 Run `supabase/migrations/0005_client_reports.sql` after the earlier migrations. Reports can be drafted in the dashboard, published to a tokenised read-only URL, and printed/saved as PDF through the browser.
+
+## Agency operations (migration 0006)
+Run `supabase/migrations/0006_agency_operations.sql` in Supabase. This adds tasks, recurring deliverables, renewal dates, services and client health scoring.
