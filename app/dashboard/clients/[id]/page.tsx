@@ -6,6 +6,7 @@ import { Icons } from "@/components/ui/icons";
 import { createClient } from "@/lib/supabase/server";
 import { assignGscProperty, syncGscPerformance } from "./gsc-actions";
 import { updateClientOperations } from "./operations-actions";
+import { ClientActionPlan } from "./action-plan";
 
 const statusStyle: Record<string, string> = {
   active: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
@@ -49,6 +50,18 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
   const supabase = await createClient();
   const { data: client } = await supabase.from("clients").select("*").eq("id", id).single();
   if (!client) notFound();
+
+  const [{ data: clientTasks }, { data: memberDirectory }] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select(
+        "id,title,description,status,priority,owner_id,due_date,client_visible,roadmap_stage,roadmap_order,completion_note"
+      )
+      .eq("client_id", id)
+      .order("roadmap_order", { ascending: true })
+      .order("due_date", { ascending: true, nullsFirst: false }),
+    supabase.rpc("get_organisation_member_directory"),
+  ]);
 
   const { data: linkedProperty } = await supabase.from("gsc_properties").select("id, site_url, permission_level, last_synced_at").eq("client_id", id).maybeSingle();
   const { data: availableProperties } = await supabase.from("gsc_properties").select("id, site_url, permission_level").eq("organisation_id", client.organisation_id).order("site_url");
@@ -115,6 +128,11 @@ export default async function ClientPage({ params, searchParams }: { params: Pro
         <article className="app-card p-6"><p className="text-sm font-bold text-slate-500">Client health</p><div className="mt-3 flex items-end gap-3"><p className="text-5xl font-bold text-[#181818]">{client.health_score ?? 75}</p><p className="pb-1 text-sm text-slate-400">/ 100</p></div><div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${(client.health_score ?? 75) >= 75 ? "bg-emerald-500" : (client.health_score ?? 75) >= 50 ? "bg-amber-500" : "bg-rose-500"}`} style={{width: `${client.health_score ?? 75}%`}} /></div><p className="mt-4 text-sm leading-6 text-slate-500">{client.health_note || "No account-health note has been added yet."}</p></article>
         <form action={updateClientOperations.bind(null, client.id)} className="app-card p-6"><div><h2 className="font-bold text-slate-900">Commercial & account health</h2><p className="mt-1 text-sm text-slate-500">Track retainer value, renewal timing, services and relationship health.</p></div><div className="mt-5 grid gap-4 sm:grid-cols-2"><label className="text-sm font-semibold text-slate-700">Monthly retainer (£)<input name="monthly_fee" type="number" step="0.01" defaultValue={client.monthly_fee ?? 0} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5"/></label><label className="text-sm font-semibold text-slate-700">Renewal date<input name="renewal_date" type="date" defaultValue={client.renewal_date ?? ""} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5"/></label><label className="text-sm font-semibold text-slate-700">Health score<input name="health_score" type="number" min="0" max="100" defaultValue={client.health_score ?? 75} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5"/></label><label className="text-sm font-semibold text-slate-700">Services<input name="services" defaultValue={(client.services ?? []).join(", ")} placeholder="SEO, Content, Digital PR" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5"/></label></div><label className="mt-4 block text-sm font-semibold text-slate-700">Health note<textarea name="health_note" rows={3} defaultValue={client.health_note ?? ""} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5" placeholder="Relationship, delivery or commercial context..."/></label><button className="btn-primary mt-4" type="submit">Save account details</button></form>
       </section>
+      <ClientActionPlan
+        clientId={client.id}
+        tasks={(clientTasks ?? []) as any}
+        members={(memberDirectory ?? []) as any}
+      />
       <AnalysisSection
         clientId={client.id}
         type={analysisType}

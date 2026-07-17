@@ -50,6 +50,8 @@ export async function createTask(formData: FormData): Promise<void> {
   const recurrenceRule = String(
     formData.get("recurrence_rule") ?? ""
   ).trim();
+  const clientVisible = formData.get("client_visible") === "on";
+  const roadmapStage = String(formData.get("roadmap_stage") ?? "planned");
 
   if (!title) {
     throw new Error("A task title is required.");
@@ -72,6 +74,8 @@ export async function createTask(formData: FormData): Promise<void> {
     due_date: dueDate || null,
     is_recurring: isRecurring,
     recurrence_rule: isRecurring ? recurrenceRule || null : null,
+    client_visible: Boolean(clientId) && clientVisible,
+    roadmap_stage: roadmapStage,
     created_by: user.id,
   });
 
@@ -106,6 +110,10 @@ export async function updateTask(
   const completionNote = String(
     formData.get("completion_note") ?? ""
   ).trim();
+  const clientVisible = formData.get("client_visible") === "on";
+  const submittedRoadmapStage = String(
+    formData.get("roadmap_stage") ?? ""
+  ).trim();
 
   if (!validStatuses.includes(statusValue as TaskStatus)) {
     throw new Error("Invalid task status.");
@@ -116,7 +124,7 @@ export async function updateTask(
   const { data: task, error: taskError } = await supabase
     .from("tasks")
     .select(
-      "id,client_id,source_insight_id,owner_id,completion_note"
+      "id,client_id,source_insight_id,owner_id,completion_note,roadmap_stage"
     )
     .eq("id", taskId)
     .single();
@@ -142,6 +150,12 @@ export async function updateTask(
   const completedAt =
     status === "done" ? new Date().toISOString() : null;
 
+  const roadmapStage =
+    status === "done"
+      ? "complete"
+      : submittedRoadmapStage ||
+        (status === "in_progress" ? "in_progress" : task.roadmap_stage);
+
   const { error: updateError } = await supabase
     .from("tasks")
     .update({
@@ -150,6 +164,8 @@ export async function updateTask(
       completion_note: finalCompletionNote,
       completed_at: completedAt,
       completed_by: status === "done" ? user.id : null,
+      client_visible: Boolean(task.client_id) && clientVisible,
+      roadmap_stage: roadmapStage,
       updated_at: new Date().toISOString(),
     })
     .eq("id", taskId);

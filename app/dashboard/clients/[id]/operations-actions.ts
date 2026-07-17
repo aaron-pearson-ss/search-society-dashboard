@@ -17,3 +17,56 @@ export async function updateClientOperations(clientId: string, formData: FormDat
   revalidatePath(`/dashboard/clients/${clientId}`);
   revalidatePath("/dashboard");
 }
+
+const validRoadmapStages = ["planned", "in_progress", "complete"] as const;
+
+export async function updateClientActionPlanTask(
+  clientId: string,
+  taskId: string,
+  formData: FormData
+): Promise<void> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("You must be signed in to update the action plan.");
+  }
+
+  const stageValue = String(
+    formData.get("roadmap_stage") ?? "planned"
+  );
+  const roadmapStage = validRoadmapStages.includes(
+    stageValue as (typeof validRoadmapStages)[number]
+  )
+    ? stageValue
+    : "planned";
+  const ownerId = String(formData.get("owner_id") ?? "").trim();
+  const roadmapOrder = Math.max(
+    0,
+    Number(formData.get("roadmap_order") ?? 0)
+  );
+  const clientVisible = formData.get("client_visible") === "on";
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      client_visible: clientVisible,
+      roadmap_stage: roadmapStage,
+      roadmap_order: roadmapOrder,
+      owner_id: ownerId || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", taskId)
+    .eq("client_id", clientId);
+
+  if (error) {
+    throw new Error(`Unable to update action plan: ${error.message}`);
+  }
+
+  revalidatePath(`/dashboard/clients/${clientId}`);
+  revalidatePath("/dashboard/tasks");
+  revalidatePath("/dashboard/reports");
+}

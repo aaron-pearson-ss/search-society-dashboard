@@ -56,7 +56,7 @@ export default async function TasksPage({
     supabase
       .from("tasks")
       .select(
-        "id,title,description,status,priority,owner_id,due_date,is_recurring,recurrence_rule,source_insight_id,completion_note,completed_at,client:clients(id,name),source_insight:client_insights(id,title,impact_score)"
+        "id,title,description,status,priority,owner_id,due_date,is_recurring,recurrence_rule,source_insight_id,completion_note,completed_at,client_visible,roadmap_stage,roadmap_order,client:clients(id,name),source_insight:client_insights(id,title,impact_score)"
       )
       .order("due_date", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false }),
@@ -299,6 +299,26 @@ export default async function TasksPage({
                 placeholder="e.g. Monthly, first Monday"
               />
 
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Roadmap stage
+                  <select
+                    name="roadmap_stage"
+                    defaultValue="planned"
+                    className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5"
+                  >
+                    <option value="planned">Planned</option>
+                    <option value="in_progress">In progress</option>
+                    <option value="complete">Complete</option>
+                  </select>
+                </label>
+
+                <label className="flex items-center gap-3 self-end rounded-xl bg-lime-50 px-4 py-3 text-sm font-semibold text-slate-700">
+                  <input type="checkbox" name="client_visible" />
+                  Show in client action plan
+                </label>
+              </div>
+
               <button
                 className="btn-primary btn-interactive w-full justify-center"
                 type="submit"
@@ -496,7 +516,7 @@ export default async function TasksPage({
                       <form
                         key={`${task.id}-${task.status}-${task.owner_id ?? "none"}-${task.completed_at ?? "open"}`}
                         action={updateTask.bind(null, task.id)}
-                        className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[.8fr_1fr_1.5fr_auto]"
+                        className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[.75fr_1fr_1fr_1.4fr_auto]"
                       >
                         <input type="hidden" name="return_to" value={returnTo} />
                         <select
@@ -525,6 +545,27 @@ export default async function TasksPage({
                             </option>
                           ))}
                         </select>
+
+                        <div className="grid grid-cols-[1fr_auto] gap-2">
+                          <select
+                            name="roadmap_stage"
+                            defaultValue={task.roadmap_stage ?? "planned"}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                          >
+                            <option value="planned">Planned</option>
+                            <option value="in_progress">In progress</option>
+                            <option value="complete">Complete</option>
+                          </select>
+
+                          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600">
+                            <input
+                              type="checkbox"
+                              name="client_visible"
+                              defaultChecked={task.client_visible}
+                            />
+                            Client
+                          </label>
+                        </div>
 
                         <input
                           name="completion_note"
