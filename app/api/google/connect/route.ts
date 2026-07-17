@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     client_id: googleClientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "openid email https://www.googleapis.com/auth/webmasters.readonly",
+    scope: "openid email https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly",
     access_type: "offline",
     prompt: "consent",
     include_granted_scopes: "true",

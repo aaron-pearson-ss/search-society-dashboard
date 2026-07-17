@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { encryptToken } from "@/lib/google/crypto";
 import { verifyOAuthState } from "@/lib/google/oauth-state";
+import { fetchGa4Properties } from "@/lib/google/analytics";
 
 type TokenResponse = { access_token?: string; expires_in?: number; refresh_token?: string; scope?: string; id_token?: string; error?: string };
 type SiteEntry = { siteUrl: string; permissionLevel?: string };
@@ -70,6 +71,15 @@ export async function GET(request: NextRequest) {
     updated_at: new Date().toISOString(),
   }));
   if (rows.length) await supabase.from("gsc_properties").upsert(rows, { onConflict: "organisation_id,site_url" });
+
+  try {
+    const ga4Properties = await fetchGa4Properties(tokens.access_token);
+    const ga4Rows = ga4Properties.filter((item) => item.property && item.displayName).map((item) => ({
+      organisation_id: state.organisationId, google_connection_id: connection.id,
+      property_id: item.property!.replace("properties/", ""), display_name: item.displayName!, updated_at: new Date().toISOString(),
+    }));
+    if (ga4Rows.length) await supabase.from("ga4_properties").upsert(ga4Rows, { onConflict: "organisation_id,property_id" });
+  } catch { /* GSC can still connect if Analytics access is unavailable. */ }
 
   returnUrl.searchParams.set("gsc", "connected");
   return NextResponse.redirect(returnUrl);
